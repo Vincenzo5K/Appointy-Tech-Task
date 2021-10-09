@@ -10,36 +10,91 @@ import (
 
 // User is a struct that represents a user in our application
 type User struct {
-	FullName string `json:"fullName"`
-	Username string `json:"username"`
+	Id       int    `json:"id"`
+	Name     string `json:"Name"`
 	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 // Post is a struct that represents a single post
 type Post struct {
-	Title  string `json:"title"`
-	Body   string `json:"body"`
-	Author User   `json:"author"`
+	Author    User   `json:"author"`
+	Caption   string `json:"caption"`
+	ImageUrl  string `json:"imageUrl"`
+	TimeStamp string `json:"time Stamp"`
 }
 
-var posts []Post = []Post{}
+var allposts []Post = []Post{}
+
+var allusers []User = []User{}
 
 func main() {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/posts", addItem).Methods("POST")
+	// Create User
+	router.HandleFunc("/users", createUser).Methods("POST")
 
-	router.HandleFunc("/posts", getAllPosts).Methods("GET")
+	// get user
+	router.HandleFunc("/users/{id}", getUser).Methods("GET")
 
+	// Create Post
+	router.HandleFunc("/posts", createPost).Methods("POST")
+
+	// get post
 	router.HandleFunc("/posts/{id}", getPost).Methods("GET")
 
-	router.HandleFunc("/posts/{id}", updatePost).Methods("PUT")
-
-	router.HandleFunc("/posts/{id}", patchPost).Methods("PATCH")
-
-	router.HandleFunc("/posts/{id}", deletePost).Methods("DELETE")
+	// all posts
+	router.HandleFunc("/posts/users/{id}", getAllPosts).Methods("GET")
 
 	http.ListenAndServe(":5000", router)
+}
+
+func createUser(w http.ResponseWriter, r *http.Request) {
+	// get Item value from the JSON body
+	var newUser User
+	json.NewDecoder(r.Body).Decode(&newUser)
+
+	allusers = append(allusers, newUser)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(allusers)
+}
+
+func createPost(w http.ResponseWriter, r *http.Request) {
+	// get Item value from the JSON body
+	var newPost Post
+	json.NewDecoder(r.Body).Decode(&newPost)
+
+	allposts = append(allposts, newPost)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(allposts)
+}
+
+func getUser(w http.ResponseWriter, r *http.Request) {
+	// get the ID of the post from the route parameter
+	var idParam string = mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		// there was an error
+		w.WriteHeader(400)
+		w.Write([]byte("ID could not be converted to integer"))
+		return
+	}
+
+	// error checking
+	if id >= len(allusers) {
+		w.WriteHeader(404)
+		w.Write([]byte("No user found with specified ID"))
+		return
+	}
+
+	user := allusers[id]
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
 }
 
 func getPost(w http.ResponseWriter, r *http.Request) {
@@ -54,13 +109,13 @@ func getPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// error checking
-	if id >= len(posts) {
+	if id >= len(allposts) {
 		w.WriteHeader(404)
 		w.Write([]byte("No post found with specified ID"))
 		return
 	}
 
-	post := posts[id]
+	post := allposts[id]
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(post)
@@ -68,93 +123,5 @@ func getPost(w http.ResponseWriter, r *http.Request) {
 
 func getAllPosts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(posts)
-}
-
-func addItem(w http.ResponseWriter, r *http.Request) {
-	// get Item value from the JSON body
-	var newPost Post
-	json.NewDecoder(r.Body).Decode(&newPost)
-
-	posts = append(posts, newPost)
-
-	w.Header().Set("Content-Type", "application/json")
-
-	json.NewEncoder(w).Encode(posts)
-}
-
-func updatePost(w http.ResponseWriter, r *http.Request) {
-	// get the ID of the post from the route parameters
-	var idParam string = mux.Vars(r)["id"]
-	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("ID could not be converted to integer"))
-		return
-	}
-
-	// error checking
-	if id >= len(posts) {
-		w.WriteHeader(404)
-		w.Write([]byte("No post found with specified ID"))
-		return
-	}
-
-	// get the value from JSON body
-	var updatedPost Post
-	json.NewDecoder(r.Body).Decode(&updatedPost)
-
-	posts[id] = updatedPost
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updatedPost)
-}
-
-func patchPost(w http.ResponseWriter, r *http.Request) {
-	// get the ID of the post from the route parameters
-	var idParam string = mux.Vars(r)["id"]
-	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("ID could not be converted to integer"))
-		return
-	}
-
-	// error checking
-	if id >= len(posts) {
-		w.WriteHeader(404)
-		w.Write([]byte("No post found with specified ID"))
-		return
-	}
-
-	// get the current value
-	post := &posts[id]
-	json.NewDecoder(r.Body).Decode(post)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(post)
-}
-
-func deletePost(w http.ResponseWriter, r *http.Request) {
-	// get the ID of the post from the route parameters
-	var idParam string = mux.Vars(r)["id"]
-	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("ID could not be converted to integer"))
-		return
-	}
-
-	// error checking
-	if id >= len(posts) {
-		w.WriteHeader(404)
-		w.Write([]byte("No post found with specified ID"))
-		return
-	}
-
-	// Delete the post from the slice
-	// https://github.com/golang/go/wiki/SliceTricks#delete
-	posts = append(posts[:id], posts[id+1:]...)
-
-	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(allposts)
 }
